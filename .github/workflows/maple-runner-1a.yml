@@ -76,5 +76,17 @@ jobs:
           echo "=== Yggdrasil Connected Peers ==="
           sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getPeers
 
-          echo "=== Executing Ping Test ==="
-          ping -c 5 "${YGGDRASIL_PEER_IP}"
+          echo "=== Extracting Peer Mesh IPv6 ==="
+          # Extracts the internal 200::/7 IPv6 address of the connected peer from yggdrasilctl JSON output
+          PEER_MESH_IP=$(sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getPeers -json | \
+            jq -r '.peers[] | select(.up == true) | .address' | head -n 1)
+
+          if [ -z "${PEER_MESH_IP}" ] || [ "${PEER_MESH_IP}" == "null" ]; then
+            echo "Error: No active connected peer found in Yggdrasil network."
+            exit 1
+          fi
+
+          echo "Targeting Yggdrasil Mesh IP: ${PEER_MESH_IP}"
+
+          echo "=== Executing Ping Test over Yggdrasil Mesh ==="
+          ping -c 5 "${PEER_MESH_IP}"
