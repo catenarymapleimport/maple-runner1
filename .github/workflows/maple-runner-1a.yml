@@ -1,4 +1,5 @@
 name: Maple Runner 1a
+
 on:
   workflow_dispatch:
   schedule:
@@ -15,9 +16,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq
 
-          # Fetch the latest Yggdrasil amd64 deb package release URL from GitHub API
+          # Select specifically the standard deb package, excluding vyos builds
           LATEST_DEB_URL=$(curl -sS https://api.github.com/repos/yggdrasil-network/yggdrasil-go/releases/latest | \
-            jq -r '.assets[] | select(.name | test("amd64.deb$")) | .browser_download_url')
+            jq -r '.assets[] | select(.name | test("^yggdrasil-[0-9].*amd64\\.deb$")) | .browser_download_url' | head -n 1)
 
           echo "Downloading Yggdrasil from: ${LATEST_DEB_URL}"
           curl -sSL -o yggdrasil.deb "${LATEST_DEB_URL}"
