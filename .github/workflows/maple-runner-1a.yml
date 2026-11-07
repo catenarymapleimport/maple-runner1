@@ -16,7 +16,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq python3
 
-          # Select specifically the standard deb package, excluding vyos builds
+          # Select standard deb package, excluding vyos variants
           LATEST_DEB_URL=$(curl -sS https://api.github.com/repos/yggdrasil-network/yggdrasil-go/releases/latest | \
             jq -r '.assets[] | select(.name | test("^yggdrasil-[0-9].*amd64\\.deb$")) | .browser_download_url' | head -n 1)
 
@@ -39,10 +39,8 @@ jobs:
 
           # Format URI dynamically based on IPv4 vs IPv6
           if [[ "${YGGDRASIL_PEER_IP}" == *:* ]]; then
-            # IPv6 address: wrap in brackets
             PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
           else
-            # IPv4 address: standard ip:port format
             PEER_URI="tls://${YGGDRASIL_PEER_IP}:37186"
           fi
 
@@ -57,29 +55,27 @@ jobs:
               json.dump(data, f, indent=2)
           '
 
-          # Mirror config to /etc/yggdrasil.conf for fallback compatibility
+          # Mirror config for compatibility
           sudo cp /etc/yggdrasil/yggdrasil.conf /etc/yggdrasil.conf
 
           # Enable and start service
           sudo systemctl restart yggdrasil
 
       - name: Verify Peer Connection and Ping Target
-        env:
-          YGGDRASIL_PEER_IP: ${{ secrets.YGGDRASIL_PEER_IP }}
         run: |
           # Allow setup time for connection establishment
-          sleep 10
+          sleep 15
 
           echo "=== Yggdrasil Self Address ==="
-          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getSelf
+          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock -json getSelf
 
           echo "=== Yggdrasil Connected Peers ==="
-          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getPeers
+          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock -json getPeers
 
-          echo "=== Extracting Peer Mesh IPv6 ==="
-          # Extracts the internal 200::/7 IPv6 address of the connected peer from yggdrasilctl JSON output
-          PEER_MESH_IP=$(sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getPeers -json | \
-            jq -r '.peers[] | select(.up == true) | .address' | head -n 1)
+          echo "=== Extracting Active Peer Mesh IPv6 Address ==="
+          # Query getPeers with single-dash -json and select connected peer address safely
+          PEER_MESH_IP=$(sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock -json getPeers | \
+            jq -r '.peers[]? | select(.up == true and .address != null) | .address' | head -n 1)
 
           if [ -z "${PEER_MESH_IP}" ] || [ "${PEER_MESH_IP}" == "null" ]; then
             echo "Error: No active connected peer found in Yggdrasil network."
@@ -88,5 +84,5 @@ jobs:
 
           echo "Targeting Yggdrasil Mesh IP: ${PEER_MESH_IP}"
 
-          echo "=== Executing Ping Test over Yggdrasil Mesh ==="
+          echo "=== Executing Ping Test over Yggdrasil Overlay ==="
           ping -c 5 "${PEER_MESH_IP}"
