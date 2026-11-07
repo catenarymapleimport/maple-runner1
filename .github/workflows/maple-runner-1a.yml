@@ -1,5 +1,4 @@
 name: Maple Runner 1a
-
 on:
   workflow_dispatch:
   schedule:
@@ -14,19 +13,18 @@ jobs:
       - name: Install Yggdrasil
         run: |
           sudo apt-get update
-          sudo apt-get install -y dirmngr gpg curl
+          sudo apt-get install -y curl jq
 
-          # Download and install key directly with fallback to keyservers
-          sudo mkdir -p /usr/share/keyrings
-          curl -sS https://neilalexander.s3.amazonaws.com/debian/keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/yggdrasil-keyring.gpg || \
-          gpg --keyserver keyserver.ubuntu.com --recv-keys 569A27F196F4D2FD05677A93F62D1D16C40801BD && \
-          gpg --export 569A27F196F4D2FD05677A93F62D1D16C40801BD | sudo gpg --dearmor -o /usr/share/keyrings/yggdrasil-keyring.gpg
+          # Fetch the latest Yggdrasil amd64 deb package release URL from GitHub API
+          LATEST_DEB_URL=$(curl -sS https://api.github.com/repos/yggdrasil-network/yggdrasil-go/releases/latest | \
+            jq -r '.assets[] | select(.name | test("amd64.deb$")) | .browser_download_url')
 
-          # Add repository
-          echo "deb [signed-by=/usr/share/keyrings/yggdrasil-keyring.gpg] http://neilalexander.s3.amazonaws.com/debian debian main" | sudo tee /etc/apt/sources.list.d/yggdrasil.list > /dev/null
+          echo "Downloading Yggdrasil from: ${LATEST_DEB_URL}"
+          curl -sSL -o yggdrasil.deb "${LATEST_DEB_URL}"
 
-          sudo apt-get update
-          sudo apt-get install -y yggdrasil
+          # Install package and dependencies
+          sudo dpkg -i yggdrasil.deb || sudo apt-get install -f -y
+          rm -f yggdrasil.deb
 
       - name: Configure Peer and Start Service
         env:
