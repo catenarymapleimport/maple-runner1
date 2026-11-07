@@ -30,16 +30,16 @@ jobs:
       - name: Configure Peer and Start Service
         env:
           YGGDRASIL_PEER_IP: ${{ secrets.YGGDRASIL_PEER_IP }}
+          PEER_URI: tls://[${{ secrets.YGGDRASIL_PEER_IP }}]:37186
         run: |
           # Ensure configuration directory exists
           sudo mkdir -p /etc/yggdrasil
 
-          # Generate initial JSON configuration (normal JSON is valid HJSON)
+          # Generate initial JSON configuration
           yggdrasil -genconf -json | sudo tee /etc/yggdrasil/yggdrasil.conf > /dev/null
 
-          # Safely append peer URI using Python to guarantee valid JSON formatting
-          PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
-          sudo python3 -c '
+          # Safely append peer URI using Python with PEER_URI exposed in env
+          sudo -E python3 -c '
           import json, os
           path = "/etc/yggdrasil/yggdrasil.conf"
           with open(path, "r") as f:
