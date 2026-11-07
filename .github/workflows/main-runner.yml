@@ -1,0 +1,54 @@
+name: Yggdrasil Network Verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs daily at 00:00 UTC
+    - cron: '0 0 * * *'
+
+jobs:
+  yggdrasil-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Yggdrasil
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dirmngr gpg curl
+          
+          # Add the Yggdrasil Network APT repository
+          gpg --keyserver hkps://keys.openpgp.org --recv-keys 569A27F196F4D2FD05677A93F62D1D16C40801BD
+          gpg --export 569A27F196F4D2FD05677A93F62D1D16C40801BD | sudo gpg --dearmor -o /usr/share/keyrings/yggdrasil-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/yggdrasil-keyring.gpg] http://neilalexander.s3.amazonaws.com/debian debian main" | sudo tee /usr/share/keyrings/yggdrasil.list > /dev/null
+          
+          sudo apt-get update
+          sudo apt-get install -y yggdrasil
+
+      - name: Configure Peer and Start Service
+        env:
+          YGGDRASIL_PEER_IP: ${{ secrets.YGGDRASIL_PEER_IP }}
+        run: |
+          # Generate initial configuration
+          yggdrasil -genconf | sudo tee /etc/yggdrasil/yggdrasil.conf > /dev/null
+          
+          # Insert the peer URI formatted into the Peers section
+          PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
+          sudo sed -i "/Peers: \[/a \    ${PEER_URI}" /etc/yggdrasil/yggdrasil.conf
+          
+          # Enable IPv6 routing modules and start service
+          sudo systemctl start yggdrasil
+
+      - name: Verify Peer Connection and Ping Target
+        env:
+          YGGDRASIL_PEER_IP: ${{ secrets.YGGDRASIL_PEER_IP }}
+        run: |
+          # Allow setup time for connection establishment
+          sleep 10
+          
+          echo "=== Yggdrasil Self Address ==="
+          yggdrasilctl getSelf
+          
+          echo "=== Yggdrasil Connected Peers ==="
+          yggdrasilctl getPeers
+          
+          echo "=== Executing Ping Test
