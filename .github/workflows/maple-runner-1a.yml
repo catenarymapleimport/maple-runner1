@@ -7,7 +7,7 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
-  yggdrasil-check:
+  maple-runner-1a:
     runs-on: ubuntu-latest
 
     steps:
