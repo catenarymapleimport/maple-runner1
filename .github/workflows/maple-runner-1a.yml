@@ -31,6 +31,9 @@ jobs:
         env:
           YGGDRASIL_PEER_IP: ${{ secrets.YGGDRASIL_PEER_IP }}
         run: |
+          # Ensure configuration directory exists
+          sudo mkdir -p /etc/yggdrasil
+
           # Generate initial configuration
           yggdrasil -genconf | sudo tee /etc/yggdrasil/yggdrasil.conf > /dev/null
 
@@ -38,8 +41,11 @@ jobs:
           PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
           sudo sed -i "/Peers: \[/a \    \"${PEER_URI}\"," /etc/yggdrasil/yggdrasil.conf
 
-          # Enable IPv6 routing modules and start service
-          sudo systemctl start yggdrasil
+          # Mirror config to /etc/yggdrasil.conf for fallback compatibility
+          sudo cp /etc/yggdrasil/yggdrasil.conf /etc/yggdrasil.conf
+
+          # Enable and start service
+          sudo systemctl restart yggdrasil
 
       - name: Verify Peer Connection and Ping Target
         env:
@@ -49,10 +55,10 @@ jobs:
           sleep 10
 
           echo "=== Yggdrasil Self Address ==="
-          yggdrasilctl getSelf
+          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getSelf
 
           echo "=== Yggdrasil Connected Peers ==="
-          yggdrasilctl getPeers
+          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock getPeers
 
           echo "=== Executing Ping Test ==="
           ping -c 5 "${YGGDRASIL_PEER_IP}"
