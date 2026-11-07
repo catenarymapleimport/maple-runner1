@@ -37,8 +37,16 @@ jobs:
           # Generate initial JSON configuration
           yggdrasil -genconf -json | sudo tee /etc/yggdrasil/yggdrasil.conf > /dev/null
 
-          # Format peer URI and pass explicitly to elevated python command
-          PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
+          # Format URI dynamically based on IPv4 vs IPv6
+          if [[ "${YGGDRASIL_PEER_IP}" == *:* ]]; then
+            # IPv6 address: wrap in brackets
+            PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
+          else
+            # IPv4 address: standard ip:port format
+            PEER_URI="tls://${YGGDRASIL_PEER_IP}:37186"
+          fi
+
+          # Safely append peer URI using Python
           sudo PEER_URI="${PEER_URI}" python3 -c '
           import json, os
           path = "/etc/yggdrasil/yggdrasil.conf"
