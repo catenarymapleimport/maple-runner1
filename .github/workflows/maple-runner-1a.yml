@@ -12,8 +12,6 @@ jobs:
     steps:
       - run: rustup toolchain install stable --profile minimal
 
-      - uses: Swatinem/rust-cache@v2
-      
       - name: Install Yggdrasil
         run: |
           sudo apt-get update
@@ -74,6 +72,12 @@ jobs:
         with:
           repository: catenarytransit/catenary-backend
           path: catenary-backend
+
+      # Cache Rust build artifacts after checking out catenary-backend
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: catenary-backend
 
       - name: Checkout transitland-atlas
         uses: actions/checkout@v4
@@ -144,7 +148,12 @@ jobs:
           url = "${ELASTICSEARCH_URL}"
           EOF
 
-      - name: Run Maple Ingestion Engine
+      - name: Build Maple Ingestion Engine
         run: |
           cd catenary-backend
           cargo run --release --bin maple
+
+      - name: Run Maple Ingestion Engine
+        run: |
+          cd catenary-backend
+          ./target/release/maple
