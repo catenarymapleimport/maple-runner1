@@ -110,9 +110,17 @@ jobs:
 
       - name: Compile
         run: |
+          cd catenary-backend
           cargo build --release --bin maple
 
       - name: Download pfaedle files needed
         run: |
           cd catenary-backend
           wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railstations-europe-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railonly-north-america-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-france-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-great-britain-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-ontario-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-ukraine-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-western-australia-latest.osm.pbf
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railway-filtered-japan-latest.osm.pbf
