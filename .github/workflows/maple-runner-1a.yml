@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - run: rustup toolchain install stable --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
+      
       - name: Install Yggdrasil
         run: |
           sudo apt-get update
@@ -86,3 +90,29 @@ jobs:
 
           echo "=== Executing Ping Test over Yggdrasil Overlay ==="
           ping -c 5 "${PEER_MESH_IP}"
+
+      - name: Checkout catenary-backend
+        uses: actions/checkout@v4
+        with:
+          repository: catenarytransit/catenary-backend
+          path: catenary-backend
+
+      - name: Checkout transitland-atlas
+        uses: actions/checkout@v4
+        with:
+          repository: catenarytransit/transitland-atlas
+          path: transitland-atlas
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libpq-dev libssl-dev pkg-config postgresql-client redis cmake jq ninja-build gcc-14 g++-14 build-essential binutils libtbb-dev
+
+      - name: Compile
+        run: |
+          cargo build --release --bin maple
+
+      - name: Download pfaedle files needed
+        run: |
+          cd catenary-backend
+          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railstations-europe-latest.osm.pbf
