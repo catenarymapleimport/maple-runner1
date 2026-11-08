@@ -88,19 +88,25 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libpq-dev libssl-dev pkg-config postgresql-client redis cmake jq ninja-build gcc-14 g++-14 build-essential binutils libtbb-dev
+          sudo apt-get install -y protobuf-compiler libpq-dev libssl-dev pkg-config postgresql-client redis cmake jq ninja-build gcc-14 g++-14 build-essential binutils libtbb-dev wget
 
       - name: Download pfaedle files needed
         run: |
           cd catenary-backend
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railstations-europe-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railonly-north-america-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-france-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-great-britain-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-ontario-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-ukraine-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/pfaedle-filtered-western-australia-latest.osm.pbf
-          wget https://github.com/catenarytransit/osm-filter/releases/download/latest/railway-filtered-japan-latest.osm.pbf
+          BASE_URL="https://github.com/catenarytransit/osm-filter/releases/download/latest"
+          FILES=(
+            "railstations-europe-latest.osm.pbf"
+            "railonly-north-america-latest.osm.pbf"
+            "pfaedle-filtered-france-latest.osm.pbf"
+            "pfaedle-filtered-great-britain-latest.osm.pbf"
+            "pfaedle-filtered-ontario-latest.osm.pbf"
+            "pfaedle-filtered-ukraine-latest.osm.pbf"
+            "pfaedle-filtered-western-australia-latest.osm.pbf"
+            "railway-filtered-japan-latest.osm.pbf"
+          )
+          for file in "${FILES[@]}"; do
+            wget -nv --tries=5 --retry-connrefused "${BASE_URL}/${file}"
+          done
 
       - name: Generate Maple Configuration File
         env:
