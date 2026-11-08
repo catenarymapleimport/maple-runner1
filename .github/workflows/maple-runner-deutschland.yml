@@ -159,6 +159,54 @@ jobs:
           cd catenary-backend
           cargo build --release --bin maple
 
+      - name: Get upstream commit hashes for cache keys
+        id: get-hashes
+        run: |
+          echo "pfaedle=$(git ls-remote https://github.com/ad-freiburg/pfaedle.git HEAD | awk '{ print $1}')" >> $GITHUB_OUTPUT
+          echo "pfaedle_rs=$(git ls-remote https://github.com/catenarytransit/pfaedle-rs.git HEAD | awk '{ print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Cache pfaedle (C++) binary
+        id: cache-pfaedle
+        uses: actions/cache@v4
+        with:
+          path: ~/cached-binaries/pfaedle
+          key: ${{ runner.os }}-pfaedle-${{ steps.get-hashes.outputs.pfaedle }}
+
+      - name: Build pfaedle (C++)
+        if: steps.cache-pfaedle.outputs.cache-hit != 'true'
+        run: |
+          git clone --recursive https://github.com/ad-freiburg/pfaedle.git /tmp/pfaedle
+          cd /tmp/pfaedle
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make -j$(nproc)
+          mkdir -p ~/cached-binaries
+          cp pfaedle ~/cached-binaries/pfaedle
+
+      - name: Cache pfaedle-rs (Rust) binary
+        id: cache-pfaedle-rs
+        uses: actions/cache@v4
+        with:
+          path: ~/cached-binaries/pfaedle-rs
+          key: ${{ runner.os }}-pfaedle-rs-${{ steps.get-hashes.outputs.pfaedle_rs }}
+
+      - name: Build pfaedle-rs (Rust)
+        if: steps.cache-pfaedle-rs.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/catenarytransit/pfaedle-rs.git /tmp/pfaedle-rs
+          cd /tmp/pfaedle-rs
+          cargo build --release
+          
+          BIN_PATH=$(find target/release -maxdepth 1 -type f -executable -name "pfaedle*" | head -n 1)
+          mkdir -p ~/cached-binaries
+          cp "$BIN_PATH" ~/cached-binaries/pfaedle-rs
+
+      - name: Install pfaedle binaries to system path
+        run: |
+          sudo cp ~/cached-binaries/pfaedle /usr/local/bin/pfaedle
+          sudo cp ~/cached-binaries/pfaedle-rs /usr/local/bin/pfaedle-rs
+          sudo chmod +x /usr/local/bin/pfaedle*
+
       - name: Run Maple Ingestion Engine
         run: |
           cd catenary-backend
