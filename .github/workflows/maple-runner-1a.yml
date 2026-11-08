@@ -157,7 +157,7 @@ jobs:
       - name: Build Maple Ingestion Engine
         run: |
           cd catenary-backend
-          cargo run --release --bin maple
+          cargo build --release --bin maple
 
       - name: Run Maple Ingestion Engine
         run: |
