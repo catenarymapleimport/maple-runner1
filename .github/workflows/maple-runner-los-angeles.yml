@@ -1,0 +1,165 @@
+name: Maple Runner (los angeles)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 10,11,12 * * *'
+
+jobs:
+  maple-runner-los-angeles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: rustup toolchain install stable --profile minimal
+
+      - name: Install Yggdrasil
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq python3
+
+          LATEST_DEB_URL=$(curl -sS https://api.github.com/repos/yggdrasil-network/yggdrasil-go/releases/latest | \
+            jq -r '.assets[] | select(.name | test("^yggdrasil-[0-9].*amd64\\.deb$")) | .browser_download_url' | head -n 1)
+
+          echo "Downloading Yggdrasil from: ${LATEST_DEB_URL}"
+          curl -sSL -o yggdrasil.deb "${LATEST_DEB_URL}"
+
+          sudo dpkg -i yggdrasil.deb || sudo apt-get install -f -y
+          rm -f yggdrasil.deb
+
+      - name: Configure Peer and Start Service
+        env:
+          YGGDRASIL_PEER_IP: ${{ secrets.YGGDRASIL_PEER_IP }}
+        run: |
+          sudo mkdir -p /etc/yggdrasil
+          yggdrasil -genconf -json | sudo tee /etc/yggdrasil/yggdrasil.conf > /dev/null
+
+          if [[ "${YGGDRASIL_PEER_IP}" == *:* ]]; then
+            PEER_URI="tls://[${YGGDRASIL_PEER_IP}]:37186"
+          else
+            PEER_URI="tls://${YGGDRASIL_PEER_IP}:37186"
+          fi
+
+          sudo PEER_URI="${PEER_URI}" python3 -c '
+          import json, os
+          path = "/etc/yggdrasil/yggdrasil.conf"
+          with open(path, "r") as f:
+              data = json.load(f)
+          data["Peers"].append(os.environ["PEER_URI"])
+          with open(path, "w") as f:
+              json.dump(data, f, indent=2)
+          '
+
+          sudo cp /etc/yggdrasil/yggdrasil.conf /etc/yggdrasil.conf
+          sudo systemctl restart yggdrasil
+
+      - name: Verify Mesh Connection and Reachability
+        env:
+          TARGET_IP: ${{ secrets.YGGDRASIL_TARGET_IP }}
+        run: |
+          sleep 15
+
+          echo "=== Yggdrasil Self Address ==="
+          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock -json getSelf
+
+          echo "=== Yggdrasil Connected Peers ==="
+          sudo yggdrasilctl -endpoint=unix:///var/run/yggdrasil/yggdrasil.sock -json getPeers
+
+          echo "=== Executing Ping Test to Target Mesh IP (${TARGET_IP}) ==="
+          ping -c 5 "${TARGET_IP}"
+
+      - name: Checkout catenary-backend
+        uses: actions/checkout@v4
+        with:
+          repository: catenarytransit/catenary-backend
+          path: catenary-backend
+
+      # Cache Rust build artifacts after checking out catenary-backend
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: catenary-backend
+
+      - name: Checkout transitland-atlas
+        uses: actions/checkout@v4
+        with:
+          repository: catenarytransit/transitland-atlas
+          path: transitland-atlas
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libpq-dev libssl-dev pkg-config postgresql-client redis cmake jq ninja-build gcc-14 g++-14 build-essential binutils libtbb-dev wget
+
+      - name: Download pfaedle files needed
+        run: |
+          cd catenary-backend
+          BASE_URL="https://github.com/catenarytransit/osm-filter/releases/download/latest"
+          FILES=(
+            "railstations-europe-latest.osm.pbf"
+            "railonly-north-america-latest.osm.pbf"
+            "pfaedle-filtered-france-latest.osm.pbf"
+            "pfaedle-filtered-great-britain-latest.osm.pbf"
+            "pfaedle-filtered-ontario-latest.osm.pbf"
+            "pfaedle-filtered-ukraine-latest.osm.pbf"
+            "pfaedle-filtered-western-australia-latest.osm.pbf"
+            "railway-filtered-japan-latest.osm.pbf"
+          )
+          for file in "${FILES[@]}"; do
+            wget -nv --tries=5 --retry-connrefused "${BASE_URL}/${file}"
+          done
+
+      - name: Generate Maple Configuration File
+        env:
+          TRANSITLAND_PATH: "${{ github.workspace }}/transitland-atlas/"
+          DISCORD_LOG: ${{ secrets.DISCORD_LOG }}
+          CROATIA_NPT_USERNAME: ${{ secrets.CROATIA_NPT_USERNAME }}
+          CROATIA_NPT_PASSWORD: ${{ secrets.CROATIA_NPT_PASSWORD }}
+          GRAND_LYON_USERNAME: ${{ secrets.GRAND_LYON_USERNAME }}
+          GRAND_LYON_PASSWORD: ${{ secrets.GRAND_LYON_PASSWORD }}
+          DE_USERNAME: ${{ secrets.DE_USERNAME }}
+          DE_PASSWORD: ${{ secrets.DE_PASSWORD }}
+          NSW_API_KEY: ${{ secrets.NSW_API_KEY }}
+          DATABASE_URL: ${{ secrets.POSTGRES_DATABASE_URL }}
+          ELASTICSEARCH_URL: ${{ secrets.ELASTICSEARCH_URL }}
+        run: |
+          mkdir -p /tmp/temp-compressed-maple /tmp/temp-uncompressed
+          cat <<EOF > catenary-backend/catenaryconfig.toml
+          [maple]
+          transitland = "${TRANSITLAND_PATH}"
+          use_girolle = true
+          no_elastic = false
+          delete_before_ingest = false
+          gtfs_zip_temp = "/tmp/temp-compressed-maple/"
+          gtfs_uncompressed_temp = "/tmp/temp-uncompressed/"
+          threads_gtfs = 4
+          force_ingest_all = false
+          bypass_temp_delete = false
+          discord_log = "${DISCORD_LOG}"
+
+          [maple.transitland_download]
+          download_threads = 64
+          croatia_npt_username = "${CROATIA_NPT_USERNAME}"
+          croatia_npt_password = "${CROATIA_NPT_PASSWORD}"
+          grand_lyon_username = "${GRAND_LYON_USERNAME}"
+          grand_lyon_password = "${GRAND_LYON_PASSWORD}"
+          de_username = "${DE_USERNAME}"
+          de_password = "${DE_PASSWORD}"
+          nsw_api_key = "${NSW_API_KEY}"
+
+          [postgres]
+          database_url = "${DATABASE_URL}"
+          max_connections = 128
+
+          [elasticsearch]
+          url = "${ELASTICSEARCH_URL}"
+          EOF
+
+      - name: Build Maple Ingestion Engine
+        run: |
+          cd catenary-backend
+          cargo build --release --bin maple
+
+      - name: Run Maple Ingestion Engine
+        run: |
+          cd catenary-backend
+          ONLY_FEED_ID=f-9q5-metro~losangeles~rail ./target/release/maple
