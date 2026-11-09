@@ -204,4 +204,4 @@ jobs:
       - name: Run Maple Ingestion Engine
         run: |
           cd catenary-backend
-          ./target/release/maple
+          SKIP_FEED_IDS=f-9q5-metro~losangeles~rail,f-gtfs~de~deutsche~bahn,f-gtfs~de,f-gtfs~de~thüringen,f-gtfs~de~schleswig~holstein,f-gtfs~de~sachsen~anhalt,f-gtfs~de~sachsen,f-gtfs~de~saarland,f-gtfs~de~rheinland~pfalz,f-gtfs~de~nordrhein~westfalen,f-gtfs~de~niedersachsen,f-gtfs~de~mecklenburg~vorpommern,f-gtfs~de~hessen,f-gtfs~de~hamburg,f-gtfs~de~bremen,f-gtfs~de~brandenburg,f-gtfs~de~berlin,f-gtfs~de~bayern,f-gtfs~de~baden~württemberg ./target/release/maple
