@@ -103,6 +103,8 @@ jobs:
             "pfaedle-filtered-ukraine-latest.osm.pbf"
             "pfaedle-filtered-western-australia-latest.osm.pbf"
             "railway-filtered-japan-latest.osm.pbf"
+            "cta-rail-filtered-illinois-latest.osm.pbf"
+            "bratislava.osm.pbf"
           )
           for file in "${FILES[@]}"; do
             wget -nv --tries=5 --retry-connrefused "${BASE_URL}/${file}"
