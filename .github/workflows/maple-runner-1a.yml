@@ -178,8 +178,8 @@ jobs:
           sudo make install
           
           mkdir -p ~/cached-pfaedle-env
-          cp /usr/local/bin/pfaedle ~/cached-pfaedle-env/
-          cp -r /usr/local/etc/pfaedle ~/cached-pfaedle-env/etc-pfaedle
+          sudo cp /usr/local/bin/pfaedle ~/cached-pfaedle-env/
+          sudo cp -r /usr/local/etc/pfaedle ~/cached-pfaedle-env/etc-pfaedle
 
       - name: Cache pfaedle-rs (Rust) binary
         id: cache-pfaedle-rs
