@@ -95,14 +95,8 @@ jobs:
           cd catenary-backend
           BASE_URL="https://github.com/catenarytransit/osm-filter/releases/download/latest"
           FILES=(
-            "railstations-europe-latest.osm.pbf"
-            "railonly-north-america-latest.osm.pbf"
-            "pfaedle-filtered-france-latest.osm.pbf"
-            "pfaedle-filtered-great-britain-latest.osm.pbf"
-            "pfaedle-filtered-ontario-latest.osm.pbf"
-            "pfaedle-filtered-ukraine-latest.osm.pbf"
-            "pfaedle-filtered-western-australia-latest.osm.pbf"
-            "railway-filtered-japan-latest.osm.pbf"
+            railonly-europe-latest.osm.pbf
+            pfaedle-filtered-germany-latest.osm.pbf
           )
           for file in "${FILES[@]}"; do
             wget -nv --tries=5 --retry-connrefused "${BASE_URL}/${file}"
