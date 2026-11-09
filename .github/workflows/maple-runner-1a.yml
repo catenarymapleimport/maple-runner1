@@ -160,11 +160,11 @@ jobs:
           echo "pfaedle=$(git ls-remote https://github.com/ad-freiburg/pfaedle.git HEAD | awk '{ print $1}')" >> $GITHUB_OUTPUT
           echo "pfaedle_rs=$(git ls-remote https://github.com/catenarytransit/pfaedle-rs.git HEAD | awk '{ print $1}')" >> $GITHUB_OUTPUT
 
-      - name: Cache pfaedle (C++) binary
+      - name: Cache pfaedle (C++) binary and config
         id: cache-pfaedle
         uses: actions/cache@v4
         with:
-          path: ~/cached-binaries/pfaedle
+          path: ~/cached-pfaedle-env
           key: ${{ runner.os }}-pfaedle-${{ steps.get-hashes.outputs.pfaedle }}
 
       - name: Build pfaedle (C++)
@@ -175,8 +175,11 @@ jobs:
           mkdir build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(nproc)
-          mkdir -p ~/cached-binaries
-          cp pfaedle ~/cached-binaries/pfaedle
+          sudo make install
+          
+          mkdir -p ~/cached-pfaedle-env
+          cp /usr/local/bin/pfaedle ~/cached-pfaedle-env/
+          cp -r /usr/local/etc/pfaedle ~/cached-pfaedle-env/etc-pfaedle
 
       - name: Cache pfaedle-rs (Rust) binary
         id: cache-pfaedle-rs
@@ -195,6 +198,18 @@ jobs:
           BIN_PATH=$(find target/release -maxdepth 1 -type f -executable -name "pfaedle*" | head -n 1)
           mkdir -p ~/cached-binaries
           cp "$BIN_PATH" ~/cached-binaries/pfaedle-rs
+
+      - name: Install pfaedle binaries to system path
+        run: |
+          # Install pfaedle (C++) and its config
+          sudo cp ~/cached-pfaedle-env/pfaedle /usr/local/bin/pfaedle
+          sudo mkdir -p /usr/local/etc
+          sudo cp -r ~/cached-pfaedle-env/etc-pfaedle /usr/local/etc/pfaedle
+          sudo chmod +x /usr/local/bin/pfaedle
+          
+          # Install pfaedle-rs (Rust)
+          sudo cp ~/cached-binaries/pfaedle-rs /usr/local/bin/pfaedle-rs
+          sudo chmod +x /usr/local/bin/pfaedle-rs
 
       - name: Build Maple Ingestion Engine
         run: |
