@@ -1,4 +1,4 @@
-name: Maple Runner Deutschland
+name: Maple Runner CH
 
 on:
   workflow_dispatch:
