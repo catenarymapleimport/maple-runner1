@@ -1,10 +1,15 @@
+
 name: Maple Runner Network Rail UK
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 * * * *'
-
+    
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+  
 jobs:
   maple-runner:
     runs-on: ubuntu-latest
