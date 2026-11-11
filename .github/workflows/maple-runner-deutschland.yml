@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '0 23 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   maple-runner:
     runs-on: ubuntu-latest
